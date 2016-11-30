@@ -1,0 +1,34 @@
+{
+  "name": "node-red-contrib-dynamorse-sdi-io",
+  "version": "0.0.1",
+  "description": "Dynamorse SDI IO nodes for Node-RED",
+  "author": "Streampunk Media Ltd",
+  "license": "Apache-2.0",
+  "keywords": [
+    "Node-RED"
+  ],
+  "dependencies": {
+    "macadam": "^0.1.10",
+    "promise": "^7.1.1"
+  },
+  "devDependencies": {
+    "tape": "^4.2.2"
+  },
+  "scripts": {
+    "test": "tape test/*Spec.js"
+  },
+  "node-red": {
+    "nodes": {
+      "sdi-in": "nodes/50-sdi-in.js",
+      "sdi-out": "nodes/50-sdi-out.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Streampunk/node-red-contrib-dynamorse-sdi-io.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Streampunk/node-red-contrib-dynamorse-sdi-io/issues"
+  },
+  "homepage": "https://github.com/Streampunk/node-red-contrib-dynamorse-sdi-io#readme"
+}

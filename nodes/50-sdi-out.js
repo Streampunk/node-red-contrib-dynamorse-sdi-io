@@ -1,4 +1,4 @@
-/* Copyright 2016 Streampunk Media Ltd.
+/* Copyright 2017 Streampunk Media Ltd.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ module.exports = function (RED) {
     var playback = null;
     var node = this;
 
-    this.each(function (x, next) {
+    this.each((x, next) => {
       if (!Grain.isGrain(x)) {
         node.warn('Received non-Grain payload.');
         return next();
@@ -38,7 +38,7 @@ module.exports = function (RED) {
       var nextJob = (node.srcFlow) ?
         Promise.resolve(x) :
         (Promise.denodeify(node.getNMOSFlow, 1))(x)
-        .then(function (f) {
+        .then(f => {
           node.srcFlow = f;
           if (f.tags.format[0] !== 'video') {
             return node.preFlightError('Only video sources supported for SDI out.');
@@ -171,13 +171,13 @@ module.exports = function (RED) {
           bmFormat = macadam.fourCCFormat(f.tags.packing[0]);
           playback = new macadam.Playback(config.deviceIndex,
             bmMode, bmFormat);
-          playback.on('error', function (e) {
+          playback.on('error', e => {
             node.warn(`Received playback error from Blackmagic card: ${e}`);
             next();
           });
           return x;
         });
-      nextJob.then(function (g) {
+      nextJob.then(g => {
         if (count < +config.frameCache) {
           node.log(`Caching frame ${count}/${typeof config.frameCache}.`);
           playback.frame(g.buffers[0]);
@@ -188,7 +188,7 @@ module.exports = function (RED) {
           }
           next();
         } else {
-          playback.once('played', function () {
+          playback.once('played', () => {
             node.log(`Playing frame ${count}.`);
             playback.frame(g.buffers[0]);
             count++;
@@ -196,27 +196,27 @@ module.exports = function (RED) {
           });
         };
       })
-      .catch(function (err) {
+      .catch(err => {
         node.error(`Failed to play video on device '${config.deviceIndex}': ${err}`);
       });
     });
 
-    node.errors(function (e, next) {
+    node.errors((e, next) => {
       node.warn(`Received unhandled error: ${e.message}.`);
       setImmediate(next);
     });
-    node.done(function () {
+    node.done(() => {
       node.log('No more to see here!');
       playback.stop();
     });
-    node.close(function () {
+    node.close(() => {
       node.log('Closing the video - too bright!');
       playback.stop();
     });
-    process.on('exit', function () {
+    process.on('exit', () => {
       if (playback) playback.stop();
     });
-    process.on('SIGINT', function () {
+    process.on('SIGINT', () => {
       if (playback) playback.stop();
     });
   }

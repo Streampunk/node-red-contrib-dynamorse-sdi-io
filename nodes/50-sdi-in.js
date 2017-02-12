@@ -1,4 +1,4 @@
-/* Copyright 2016 Streampunk Media Ltd.
+/* Copyright 2017 Streampunk Media Ltd.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 var redioactive = require('node-red-contrib-dynamorse-core').Redioactive;
 var util = require('util');
 var macadam;
-try { macadam = require('macadam'); } catch(err) { console.log('SDI-In: ' + err); } 
+try { macadam = require('macadam'); } catch(err) { console.log('SDI-In: ' + err); }
 
 var Grain = require('node-red-contrib-dynamorse-core').Grain;
 
@@ -63,15 +63,14 @@ module.exports = function (RED) {
     var flow = new ledger.Flow(null, null, localName, localDescription,
       "urn:x-nmos:format:video", this.tags, source.id, null);
     nodeAPI.putResource(source).catch(node.warn);
-    nodeAPI.putResource(flow).then(
-      function (x) {
+    nodeAPI.putResource(flow).then(() => {
         node.log('Flow stored. Starting capture.');
         capture.start();
       },
       node.warn);
 
-    this.eventMuncher(capture, 'frame', function (payload) {
-      var grainTime = new Buffer(10);
+    this.eventMuncher(capture, 'frame', payload => {
+      var grainTime = Buffer.allocUnsafe(10);
       grainTime.writeUIntBE(this.baseTime[0], 0, 6);
       grainTime.writeUInt32BE(this.baseTime[1], 6);
       this.baseTime[1] = ( this.baseTime[1] +
@@ -80,13 +79,13 @@ module.exports = function (RED) {
         this.baseTime[1] % 1000000000];
       return new Grain([payload], grainTime, grainTime, null,
         flow.id, source.id, grainDuration); // TODO Timecode support
-    }.bind(this));
+    });
 
-    capture.on('error', function (e) {
+    capture.on('error', e => {
       this.push(e);
-    }.bind(this));
+    });
 
-    this.on('close', function () {
+    this.on('close', () => {
       this.close();
       capture.stop();
     });

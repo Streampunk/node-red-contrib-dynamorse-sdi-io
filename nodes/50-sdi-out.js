@@ -168,7 +168,8 @@ module.exports = function (RED) {
               node.preFlightError('Could not establish Blackmagic mode.');
               break;
           }
-          bmFormat = macadam.fourCCFormat(f.tags.packing[0]);
+          if (f.tags.packing && f.tags.packing.length >= 1)
+            bmFormat = macadam.fourCCFormat(f.tags.packing[0]);
           playback = new macadam.Playback(config.deviceIndex,
             bmMode, bmFormat);
           playback.on('error', e => {

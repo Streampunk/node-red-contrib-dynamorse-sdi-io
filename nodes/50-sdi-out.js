@@ -186,15 +186,16 @@ module.exports = function (RED) {
           if (count === +config.frameCache) {
             node.log('Starting playback.');
             playback.start();
+            playback.on('played', () => {
+              node.log('Frame callback recieved. Calling next.');
+              next(); next(); // TODO improve on this - work at why it needs to be called twice
+            });
           }
           next();
         } else {
-          playback.once('played', () => {
-            node.log(`Playing frame ${count}.`);
-            playback.frame(g.buffers[0]);
-            count++;
-            next();
-          });
+          node.log(`Playing frame ${count}.`);
+          playback.frame(g.buffers[0]);
+          count++;
         };
       })
       .catch(err => {

@@ -205,7 +205,7 @@ module.exports = function (RED) {
                   this.warn(`After ${playedCount} frames, playback state returned to frame completed OK.`);
                   break;
                 case BMDOutputFrameDisplayedLate:
-                  this.warn(`After ${playedCount} frames, playback state is now displaying frames lates.`);
+                  this.warn(`After ${playedCount} frames, playback state is now displaying frames late.`);
                   break;
                 case BMDOutputFrameDropped:
                   this.warn(`After ${playedCount} frames, playback state is dropping frames.`);

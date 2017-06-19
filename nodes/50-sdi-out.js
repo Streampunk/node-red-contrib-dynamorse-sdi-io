@@ -20,15 +20,25 @@ var macadam;
 try { macadam = require('macadam'); } catch(err) { console.log('SDI-Out: ' + err); }
 var Grain = require('node-red-contrib-dynamorse-core').Grain;
 
+const BMDOutputFrameCompleted = 0;
+const BMDOutputFrameDisplayedLate = 1;
+const BMDOutputFrameDropped = 2;
+const BMDOutputFrameFlushed = 3;
+
+
 module.exports = function (RED) {
   function SDIOut (config) {
     RED.nodes.createNode(this, config);
     redioactive.Spout.call(this, config);
 
     this.srcFlow = null;
-    var count = 0;
+    var sentCount = 0;
+    var playedCount = 0;
     var playback = null;
     var node = this;
+    var begin = null;
+    var playState = BMDOutputFrameCompleted;
+    var producingEnough = true;
 
     this.each((x, next) => {
       if (!Grain.isGrain(x)) {
@@ -176,27 +186,71 @@ module.exports = function (RED) {
             node.warn(`Received playback error from Blackmagic card: ${e}`);
             next();
           });
+
+          begin = process.hrtime();
           return x;
         });
       nextJob.then(g => {
-        if (count < +config.frameCache) {
-          node.log(`Caching frame ${count}/${typeof config.frameCache}.`);
-          playback.frame(g.buffers[0]);
-          count++;
-          if (count === +config.frameCache) {
-            node.log('Starting playback.');
-            playback.start();
-            playback.on('played', () => {
-              node.log('Frame callback recieved. Calling next.');
-              next(); next(); // TODO improve on this - work at why it needs to be called twice
-            });
-          }
-          next();
-        } else {
-          node.log(`Playing frame ${count}.`);
-          playback.frame(g.buffers[0]);
-          count++;
-        };
+        playback.frame(g.buffers[0]);
+        sentCount++;
+        if (sentCount === +config.frameCache) {
+          this.log('Starting playback.');
+          playback.start();
+          playback.on('played', p => {
+            playedCount++;
+            if (p !== playState) {
+              playState = p;
+              switch (playState) {
+                case BMDOutputFrameCompleted:
+                  this.warn(`After ${playedCount} frames, playback state returned to frame completed OK.`);
+                  break;
+                case BMDOutputFrameDisplayedLate:
+                  this.warn(`After ${playedCount} frames, playback state is now displaying frames lates.`);
+                  break;
+                case BMDOutputFrameDropped:
+                  this.warn(`After ${playedCount} frames, playback state is dropping frames.`);
+                  break;
+                case bmdOutputFrameFlushed:
+                  this.warn(`After ${playedCount} frames, playback state is flushing frames.`);
+                  break;
+                default:
+                  this.error(`After ${playedCount} frames, playback state is unknown, code ${playState}.`);
+                  break;
+              }
+            }
+          });
+        }
+        var diffTime = process.hrtime(begin);
+        var diff = (sentCount * config.timeout) -
+            (diffTime[0] * 1000 + diffTime[1] / 1000000|0);
+        if ((diff < 0) && (producingEnough === true)) {
+          this.warn(`After sending ${sentCount} frames and playing ${playedCount}, not producing frames fast enough for SDI output.`);
+          producingEnough = false;
+        }
+        if ((diff > 0) && (producingEnough === false)) {
+          this.warn(`After sending ${sentCount} frames and playing ${playedCount}, started producing enough frames fast enough for SDI output.`);
+          producingEnough = true;
+        }
+        setTimeout(next, (diff > 0) ? diff : 0);
+        // if (sentCount < +config.frameCache) {
+        //   node.log(`Caching frame ${sentCount}/${typeof config.frameCache}.`);
+        //   playback.frame(g.buffers[0]);
+        //   sentCount++;
+        //   if (sentCount === +config.frameCache) {
+        //     node.log('Starting playback.');
+        //     playback.start();
+        //     playback.on('played', p => {
+        //       playedCount++;
+        //       next(); next();
+        //       if (p > 0) { console.error('XXX'); next(); }
+        //     });
+        //   }
+        //   next();
+        // } else {
+        //   // console.log(`next frame ${sentCount}.`);
+        //   playback.frame(g.buffers[0]);
+        //   sentCount++;
+        // };
       })
       .catch(err => {
         node.error(`Failed to play video on device '${config.deviceIndex}': ${err}`);

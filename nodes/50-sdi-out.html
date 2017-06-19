@@ -21,7 +21,8 @@
     defaults: {
       name : { value : '' },
       frameCache : { value : 5, validate : RED.validators.number() },
-      deviceIndex : { value : 0, vaidate : RED.validators.number() }
+      deviceIndex : { value : 0, vaidate : RED.validators.number() },
+      timeout : { value : 40, validate : RED.validators.number() }
     },
     inputs:1,
     outputs:0,
@@ -44,13 +45,17 @@
     <label for="node-input-deviceIndex" style="text-align: right; width: 80px"><i class="fa fa-list" aria-hidden="true"></i> index</label>
     <input type="number" id="node-input-deviceIndex" min="0" max="30" placeholder="0" style="width: 100px">
   </div>
+  <div class="form-row">
+    <label for="node-input-timeout"><i class="fa fa-clock-o"></i> timeout</label>
+    <input type="number" min="0" id="node-input-timeout" placeholder="40" style="width: 100px">
+  </div>
 </script>
 
 <script type="text/x-red" data-help-name="sdi-out">
   <h1>SDI output</h1>
   <h2>via Blackmagic Desktop Video SDK</h2>
   <p>Send an SDI stream via <a href="https://www.npmjs.com/package/macadam">macadam</a>,
-  a Node.js mmodule providing bindings to the Blackmagic Desktop Video SDK.</p>
+  a Node.js module providing bindings to the Blackmagic Desktop Video SDK.</p>
 
   <h3>Inputs</h3>
   <p>This node can accept separate input flows of up to one each of video, audio
@@ -59,11 +64,14 @@
   received of each type will be considered <em>the</em> input flow of that
   type and other flows of that type will cause an error.</p>
 
-  <p>Back pressure is provided via listening to events from the Blackmagic device
-  that indicate that a video frame has been successfully played. The card is
-  configured with mode and format from the parameters of the flow.</p>
+  <p>Back pressure is provided via an accurate clock running inside the node to
+  the configured timeout. The card itself does not provide reliable back pressure
+  and expects frames to be delivered on a clock. To compensate, the specified
+  number of grains are cached first.</p>
 
-  <p>Before deployment, the index of the Blackmagic interface card. Currently
+  <p>The output card is configured with mode and format from the parameters of the flow.</p>
+
+  <p>Before deployment, please determine the index of the Blackmagic interface card. Currently
   found by trial and error, the development of a tool to help with this is
   <a href="https://github.com/Streampunk/macadam/issues/4">under consideration</a>.</p>
 
@@ -84,6 +92,10 @@
    <tr>
     <td><i class="fa fa-list" aria-hidden="true"></i> index</td>
     <td>Index of the Blackmagic card according to the SDK.</td>
+   </tr>
+   <tr>
+    <td><i class="fa fa-clock-o"></i> timeout</td>
+    <td>Time to wait between writing each grain. Controls the back-pressure.</td>
    </tr>
   </table>
   </div>

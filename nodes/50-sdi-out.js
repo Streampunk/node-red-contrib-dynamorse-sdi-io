@@ -274,6 +274,7 @@ module.exports = function (RED) {
     });
     process.on('SIGINT', () => {
       if (playback) playback.stop();
+      process.exit();
     });
   }
   util.inherits(SDIOut, redioactive.Spout);

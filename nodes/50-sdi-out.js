@@ -15,7 +15,6 @@
 
 var redioactive = require('node-red-contrib-dynamorse-core').Redioactive;
 var util = require('util');
-var Promise = require('promise');
 var macadam;
 try { macadam = require('macadam'); } catch(err) { console.log('SDI-Out: ' + err); }
 var Grain = require('node-red-contrib-dynamorse-core').Grain;
@@ -24,7 +23,6 @@ const BMDOutputFrameCompleted = 0;
 const BMDOutputFrameDisplayedLate = 1;
 const BMDOutputFrameDropped = 2;
 const BMDOutputFrameFlushed = 3;
-
 
 module.exports = function (RED) {
   function SDIOut (config) {
@@ -45,19 +43,19 @@ module.exports = function (RED) {
         node.warn('Received non-Grain payload.');
         return next();
       }
-      var nextJob = (node.srcFlow) ?
-        Promise.resolve(x) :
-        (Promise.denodeify(node.getNMOSFlow, 1))(x)
-        .then(f => {
+      var nextJob = ((node.srcFlow) ?
+        Promise.resolve(x) : this.findCable(x))
+        .then(c => {
+          var f = f.video[0];
           node.srcFlow = f;
-          if (f.tags.format[0] !== 'video') {
+          if (f.tags.format !== 'video') {
             return node.preFlightError('Only video sources supported for SDI out.');
           }
           // Set defaults to the most commonly format for dynamorse testing
           // TODO: support for DCI modes
           var bmMode = macadam.bmdModeHD1080i50;
           var bmFormat = macadam.bmdFormat10BitYUV;
-          switch (+f.tags.height[0]) {
+          switch (f.tags.height) {
             case 2160:
               switch (x.getDuration()[1]) {
                 case 25:
@@ -92,13 +90,13 @@ module.exports = function (RED) {
               switch (x.getDuration()[1]) {
                 case 25:
                 case 25000:
-                  bmMode = (f.tags.interlace[0] === '1') ?
+                  bmMode = (f.tags.interlace === true) ?
                     macadam.bmdModeHD1080i50 : macadam.bmdModeHD1080p25;
                     break;
                 case 24:
                 case 24000:
                   if (x.getDuration()[0] === 1001) {
-                    bmdMode = (f.tags.interlace[0] === '1') ?
+                    bmdMode = (f.tags.interlace === true) ?
                       macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2398;
                   } else {
                     bmdMode = macadam.bmdModeHD1080p24;
@@ -107,10 +105,10 @@ module.exports = function (RED) {
                 case 30:
                 case 30000:
                   if (x.getDuration()[0] === 1001) {
-                    bmdMode = (f.tags.interlace[0] === '1') ?
+                    bmdMode = (f.tags.interlace === true) ?
                       macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2997;
                   } else {
-                    bmdMode = (f.tags.interlace[0] === '1') ?
+                    bmdMode = (f.tags.interlace === true) ?
                       macadam.bmdModeHD1080i6000 : macadam.bmdModeHD1080p30;
                   }
                   break;
@@ -178,8 +176,8 @@ module.exports = function (RED) {
               node.preFlightError('Could not establish Blackmagic mode.');
               break;
           }
-          if (f.tags.packing && f.tags.packing.length >= 1)
-            bmFormat = macadam.fourCCFormat(f.tags.packing[0]);
+          if (f.tags.packing)
+            bmFormat = macadam.fourCCFormat(f.tags.packing);
           playback = new macadam.Playback(config.deviceIndex,
             bmMode, bmFormat);
           playback.on('error', e => {

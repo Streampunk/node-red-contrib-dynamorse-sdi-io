@@ -17,7 +17,6 @@ var redioactive = require('node-red-contrib-dynamorse-core').Redioactive;
 var util = require('util');
 var macadam;
 try { macadam = require('macadam'); } catch(err) { console.log('SDI-In: ' + err); }
-
 var Grain = require('node-red-contrib-dynamorse-core').Grain;
 
 function fixBMDCodes(code) {
@@ -30,6 +29,7 @@ module.exports = function (RED) {
     RED.nodes.createNode(this,config);
     redioactive.Funnel.call(this, config);
 
+    // Do we need this
     if (!this.context().global.get('updated'))
       return this.log('Waiting for global context updated.');
 
@@ -37,37 +37,26 @@ module.exports = function (RED) {
       fixBMDCodes(config.mode), fixBMDCodes(config.format));
     var node = this;
     var grainDuration = macadam.modeGrainDuration(fixBMDCodes(config.mode));
-    this.tags = {
-      format : [ 'video' ],
-      encodingName : [ 'raw' ],
-      width : [ `${macadam.modeWidth(fixBMDCodes(config.mode))}` ],
-      height : [ `${macadam.modeHeight(fixBMDCodes(config.mode))}` ],
-      depth : [ `${macadam.formatDepth(fixBMDCodes(config.format))}` ],
-      packing : [ macadam.formatFourCC(fixBMDCodes(config.format)) ],
-      sampling : [ macadam.formatSampling(fixBMDCodes(config.format)) ],
-      clockRate : [ '90000' ],
-      interlace : [ (macadam.modeInterlace(fixBMDCodes(config.mode))) ? '1' : '0' ],
-      colorimetry : [ macadam.formatColorimetry(fixBMDCodes(config.format)) ],
-      grainDuration : [ `${grainDuration[0]}/${grainDuration[1]}`]
+    this.vtags = {
+      format : 'video',
+      encodingName : 'raw',
+      width : macadam.modeWidth(fixBMDCodes(config.mode)),
+      height : macadam.modeHeight(fixBMDCodes(config.mode)),
+      depth : macadam.formatDepth(fixBMDCodes(config.format)),
+      packing : macadam.formatFourCC(fixBMDCodes(config.format)),
+      sampling : macadam.formatSampling(fixBMDCodes(config.format)),
+      clockRate : 90000,
+      interlace : macadam.modeInterlace(fixBMDCodes(config.mode)),
+      colorimetry : macadam.formatColorimetry(fixBMDCodes(config.format)),
+      grainDuration : grainDuration
     };
     this.baseTime = [ Date.now() / 1000|0, (Date.now() % 1000) * 1000000 ];
-    var nodeAPI = this.context().global.get('nodeAPI');
-    var ledger = this.context().global.get('ledger');
-    var localName = config.name || `${config.type}-${config.id}`;
-    var localDescription = config.description || `${config.type}-${config.id}`;
-    var pipelinesID = config.device ?
-      RED.nodes.getNode(config.device).nmos_id :
-      this.context().global.get('pipelinesID');
-    var source = new ledger.Source(null, null, localName, localDescription,
-      "urn:x-nmos:format:video", null, null, pipelinesID, null);
-    var flow = new ledger.Flow(null, null, localName, localDescription,
-      "urn:x-nmos:format:video", this.tags, source.id, null);
-    nodeAPI.putResource(source).catch(node.warn);
-    nodeAPI.putResource(flow).then(() => {
-        node.log('Flow stored. Starting capture.');
-        capture.start();
-      },
-      node.warn);
+    this.makeCable({ video: [ { tags: this.vtags } ], backPressure: "video[0]" });
+
+    var flowID = this.flowID();
+    var sourceID = this.sourceID();
+
+    node.log(`You wanted audio? ${config.audio}`);
 
     this.eventMuncher(capture, 'frame', payload => {
       var grainTime = Buffer.allocUnsafe(10);
@@ -78,7 +67,7 @@ module.exports = function (RED) {
       this.baseTime = [ this.baseTime[0] + this.baseTime[1] / 1000000000|0,
         this.baseTime[1] % 1000000000];
       return new Grain([payload], grainTime, grainTime, null,
-        flow.id, source.id, grainDuration); // TODO Timecode support
+        flowID, sourceID, grainDuration); // TODO Timecode support
     });
 
     capture.on('error', e => {

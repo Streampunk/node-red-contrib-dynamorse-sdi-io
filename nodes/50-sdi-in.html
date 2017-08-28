@@ -22,17 +22,18 @@
       name : { value : '' },
       maxBuffer : { value : 10, validate : RED.validators.number() },
       description : { value : '' },
-      device : { value : '', type : 'device' },
+      // device : { value : '', type : 'device' },
       deviceIndex : { value : 0, validate : RED.validators.number() },
       mode : { value : 'Hi50', validate : function (x) {
         return typeof x === 'string' && x.length === 4;
       } },
       format : { value : 'v210', validate : function (x) {
         return typeof x === 'string' && x.length === 4;
-      } }
+      } },
+      audio : { value : true }
     },
     inputs:0,
-    outputs:3,
+    outputs:1,
     icon: "funnel.png",
     label: function() {
       return this.name || "sdi-in";
@@ -56,10 +57,10 @@
   <label for="node-input-description"><i class="fa fa-info-circle"></i> description</label>
   <input type="text" id="node-input-description" placeholder="source and flow description">
 </div>
-<div class="form-row">
+<!-- <div class="form-row">
   <label for="node-input-device"><i class="fa fa-tablet"></i> device</label>
   <input type="text" id="node-input-device">
-</div>
+</div> -->
 <div class="form-row">
   <label for="node-input-mode"><i class="fa fa-video-camera"></i> mode</label>
   <select id="node-input-mode">
@@ -126,6 +127,10 @@
     <!-- Big-endian 10-bit RGB with SMPTE video levels (64-940) -->
     <option value="R10b">10BitRGBX</option>
   </select>
+  <div class="form-row">
+    <label for="node-input-audio"><i class="fa fa-microphone" aria-hidden="true"></i> audio?</label>
+    <input type="checkbox" id="node-input-audio">
+  </div>
 </div>
 </script>
 
@@ -178,10 +183,10 @@
     <td><i class="fa fa-info-circle"></i> description</td>
     <td>Optional description of the output NMOS source and flow.</td>
    </tr>
-   <tr>
+   <!-- <tr>
     <td><i class="fa fa-tablet"></i> device</td>
     <td>Select or create an NMOS device for the output source and flow.</td>
-   </tr>
+   </tr> -->
    <tr>
     <td><i class="fa fa-video-camera"></i> mode</td>
     <td>Picture dimensions, timing and interlace modes supported by the
@@ -191,6 +196,9 @@
     <td><i class="fa fa-eye"></i> sampling</td>
     <td>Bit depth and sampling combinations supported by the Blackmagic SDK.</td>
    </tr>
+   <tr>
+    <td><i class="fa fa-microphone" aria-hidden="true"></i> audio?</td>
+    <td>Capture audio alongside the video?</td>
   </table>
   </div>
 

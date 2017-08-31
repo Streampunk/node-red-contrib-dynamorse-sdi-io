@@ -35,6 +35,9 @@ module.exports = function (RED) {
 
     var capture = new macadam.Capture(config.deviceIndex,
       fixBMDCodes(config.mode), fixBMDCodes(config.format));
+    if (config.audio == true)
+      capture.enableAudio(macadam.bmdAudioSampleRate48kHz, macadam.bmdAudioSampleType16bitInteger, 2);
+
     var node = this;
     var grainDuration = macadam.modeGrainDuration(fixBMDCodes(config.mode));
     this.vtags = {
@@ -50,15 +53,30 @@ module.exports = function (RED) {
       colorimetry : macadam.formatColorimetry(fixBMDCodes(config.format)),
       grainDuration : grainDuration
     };
+    this.atags = {
+      format: 'audio',
+      encodingName: 'L16',
+      clockRate: 48000,
+      channels: 2,
+      blockAlign: 4,
+      grainDuration: grainDuration
+    };
     this.baseTime = [ Date.now() / 1000|0, (Date.now() % 1000) * 1000000 ];
-    this.makeCable({ video: [ { tags: this.vtags } ], backPressure: "video[0]" });
+    var cable = { video: [ { tags: this.vtags } ], backPressure: "video[0]" };
+    if (config.audio === true)
+      cable.audio = [ { tags: this.atags } ];
+    this.makeCable(cable);
 
-    var flowID = this.flowID();
-    var sourceID = this.sourceID();
+    var ids = {
+      vFlowID: this.flowID('video[0]'),
+      vSourceID: this.sourceID('video[0]'),
+      aFlowID: (config.audio === true) ? this.flowID('audio[0]') : undefined,
+      aSourceID: (config.audio === true) ? this.flowID('audio[0]') : undefined
+    };
 
-    node.log(`You wanted audio? ${config.audio}`);
+    node.log(`You wanted audio? ${ids}`);
 
-    this.eventMuncher(capture, 'frame', payload => {
+    this.eventMuncher(capture, 'frame', (video, audio) => {
       var grainTime = Buffer.allocUnsafe(10);
       grainTime.writeUIntBE(this.baseTime[0], 0, 6);
       grainTime.writeUInt32BE(this.baseTime[1], 6);
@@ -66,8 +84,11 @@ module.exports = function (RED) {
         grainDuration[0] * 1000000000 / grainDuration[1]|0 );
       this.baseTime = [ this.baseTime[0] + this.baseTime[1] / 1000000000|0,
         this.baseTime[1] % 1000000000];
-      return new Grain([payload], grainTime, grainTime, null,
-        flowID, sourceID, grainDuration); // TODO Timecode support
+      var va = [ new Grain([video], grainTime, grainTime, null,
+        ids.vFlowID, ids.vSourceID, grainDuration) ]; // TODO Timecode support
+      if (config.audio === true && audio) va.push(new Grain([audio], grainTime, grainTime, null,
+        ids.aFlowID, ids.aSourceID, grainDuration));
+      return va;
     });
 
     capture.on('error', e => {

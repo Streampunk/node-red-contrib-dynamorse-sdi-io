@@ -43,10 +43,11 @@ module.exports = function (RED) {
         node.warn('Received non-Grain payload.');
         return next();
       }
-      var nextJob = ((node.srcFlow) ?
-        Promise.resolve(x) : this.findCable(x))
+      var nextJob = (node.srcFlow) ?
+        Promise.resolve(x) :
+        this.findCable(x)
         .then(c => {
-          var f = f.video[0];
+          var f = f[0].video[0];
           node.srcFlow = f;
           if (f.tags.format !== 'video') {
             return node.preFlightError('Only video sources supported for SDI out.');
@@ -64,21 +65,21 @@ module.exports = function (RED) {
                   break;
                 case 24:
                 case 24000:
-                  bmdMode = (x.getDuration()[0] === 1001) ?
+                  bmMode = (x.getDuration()[0] === 1001) ?
                     macadam.bmdMode4K2160p2398 : macadam.bmdMode4K2160p24;
                   break;
                 case 30:
                 case 30000:
-                  bmdMode = (x.getDuration()[0] === 1001) ?
+                  bmMode = (x.getDuration()[0] === 1001) ?
                     macadam.bmdMode4K2160p2997 : macadam.bmdMode4K2160p30;
                   break;
                 case 50:
                 case 50000:
-                  bmdMode = macadam.bmdMode4K2160p50;
+                  bmMode = macadam.bmdMode4K2160p50;
                   break;
                 case 60:
                 case 60000:
-                  bmdMode = (x.getDuration()[0] === 1001) ?
+                  bmMode = (x.getDuration()[0] === 1001) ?
                     macadam.bmdMode4K2160p5994 : macadam.bmdMode4k2160p60;
                   break;
                 default:
@@ -96,29 +97,29 @@ module.exports = function (RED) {
                 case 24:
                 case 24000:
                   if (x.getDuration()[0] === 1001) {
-                    bmdMode = (f.tags.interlace === true) ?
+                    bmMode = (f.tags.interlace === true) ?
                       macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2398;
                   } else {
-                    bmdMode = macadam.bmdModeHD1080p24;
+                    bmMode = macadam.bmdModeHD1080p24;
                   }
                   break;
                 case 30:
                 case 30000:
                   if (x.getDuration()[0] === 1001) {
-                    bmdMode = (f.tags.interlace === true) ?
+                    bmMode = (f.tags.interlace === true) ?
                       macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2997;
                   } else {
-                    bmdMode = (f.tags.interlace === true) ?
+                    bmMode = (f.tags.interlace === true) ?
                       macadam.bmdModeHD1080i6000 : macadam.bmdModeHD1080p30;
                   }
                   break;
                 case 50:
                 case 50000:
-                  bmdMode = macadam.bmdModeHD1080p50;
+                  bmMode = macadam.bmdModeHD1080p50;
                   break;
                 case 60:
                 case 60000:
-                  bmdMode = (x.getDuration()[0] === 1001) ?
+                  bmMode = (x.getDuration()[0] === 1001) ?
                     macadam.bmdModeHD1080p5994 : macadam.bmdModeHD1080p6000;
                   break;
                 default:
@@ -130,11 +131,11 @@ module.exports = function (RED) {
               switch (x.getDuration()[1]) {
                 case 50:
                 case 50000:
-                  bmdMode = macadam.bmdModeHD720p50;
+                  bmMode = macadam.bmdModeHD720p50;
                   break;
                 case 60:
                 case 60000:
-                  bmdMode = (x.getDuration()[0] === '1') ?
+                  bmMode = (x.getDuration()[0] === '1') ?
                     macadam.bmdModeHD720p5994 : macadam.bmdModeHD720p60;
                   break;
                 default:
@@ -146,11 +147,11 @@ module.exports = function (RED) {
               switch (x.getDuration()[1]) {
                 case 25:
                 case 25000:
-                  bmdMode = bmdModePAL;
+                  bmMode = macadam.bmdModePAL;
                   break;
                 case 50:
                 case 50000:
-                  bmdMode = bmcModePALp;
+                  bmMode = macadam.bmcModePALp;
                   break;
                 default:
                   node.preFlightError('Could not establish Blackmagic mode.');
@@ -161,11 +162,11 @@ module.exports = function (RED) {
               switch (x.getDuration()[1]) {
                 case 30:
                 case 30000:
-                  bmdMode = bmdModeNTSC;
+                  bmMode = macadam.bmdModeNTSC;
                   break;
                 case 60:
                 case 60000:
-                  bmdMode = bmdModeNTSCp;
+                  bmMode = macadam.bmdModeNTSCp;
                   break;
                 default:
                   node.preFlightError('Could not establish Blackmagic mode.');
@@ -208,7 +209,7 @@ module.exports = function (RED) {
                 case BMDOutputFrameDropped:
                   this.warn(`After ${playedCount} frames, playback state is dropping frames.`);
                   break;
-                case bmdOutputFrameFlushed:
+                case BMDOutputFrameFlushed:
                   this.warn(`After ${playedCount} frames, playback state is flushing frames.`);
                   break;
                 default:

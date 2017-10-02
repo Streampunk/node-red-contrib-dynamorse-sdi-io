@@ -71,12 +71,13 @@ module.exports = function (RED) {
       vFlowID: this.flowID('video[0]'),
       vSourceID: this.sourceID('video[0]'),
       aFlowID: (config.audio === true) ? this.flowID('audio[0]') : undefined,
-      aSourceID: (config.audio === true) ? this.flowID('audio[0]') : undefined
+      aSourceID: (config.audio === true) ? this.sourceID('audio[0]') : undefined
     };
 
-    node.log(`You wanted audio? ${ids}`);
+    console.log(`You wanted audio?`, ids);
 
     this.eventMuncher(capture, 'frame', (video, audio) => {
+      console.log('Event muching', video.length, audio);
       var grainTime = Buffer.allocUnsafe(10);
       grainTime.writeUIntBE(this.baseTime[0], 0, 6);
       grainTime.writeUInt32BE(this.baseTime[1], 6);
@@ -86,8 +87,9 @@ module.exports = function (RED) {
         this.baseTime[1] % 1000000000];
       var va = [ new Grain([video], grainTime, grainTime, null,
         ids.vFlowID, ids.vSourceID, grainDuration) ]; // TODO Timecode support
-      if (config.audio === true && audio) va.push(new Grain([audio], grainTime, grainTime, null,
-        ids.aFlowID, ids.aSourceID, grainDuration));
+      if (config.audio === true && audio) va.push(
+        new Grain([audio], grainTime, grainTime, null,
+          ids.aFlowID, ids.aSourceID, grainDuration));
       return va;
     });
 
@@ -99,6 +101,8 @@ module.exports = function (RED) {
       this.close();
       capture.stop();
     });
+
+    capture.start();
   }
   util.inherits(SDIIn, redioactive.Funnel);
   RED.nodes.registerType("sdi-in", SDIIn);

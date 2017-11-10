@@ -29,7 +29,7 @@ module.exports = function (RED) {
     RED.nodes.createNode(this, config);
     redioactive.Spout.call(this, config);
 
-    this.srcFlow = null;
+    this.srcVideoFlow = null;
     var sentCount = 0;
     var playedCount = 0;
     var playback = null;
@@ -47,11 +47,13 @@ module.exports = function (RED) {
         Promise.resolve(x) :
         this.findCable(x)
         .then(c => {
-          var f = f[0].video[0];
-          node.srcFlow = f;
-          if (f.tags.format !== 'video') {
-            return node.preFlightError('Only video sources supported for SDI out.');
+          var fv = (Array.isArray(f[0].video) && f[0].video.find(
+            z => z.tags.encodingName === 'raw' && z.tags.packing === 'v210'));
+          var fa = (Array.isArray(f[0].audio) && f[0].audio.length > 0) ? f[0].video[0] : null;
+          if (!fv) {
+            return Promise.reject('Cable must contain at least one video flow.');
           }
+          node.srcFlow = f;
           // Set defaults to the most commonly format for dynamorse testing
           // TODO: support for DCI modes
           var bmMode = macadam.bmdModeHD1080i50;

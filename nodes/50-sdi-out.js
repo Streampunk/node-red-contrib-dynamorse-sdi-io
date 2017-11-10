@@ -46,172 +46,141 @@ module.exports = function (RED) {
       var nextJob = (node.srcFlow) ?
         Promise.resolve(x) :
         this.findCable(x)
-        .then(c => {
-          var fv = (Array.isArray(c[0].video) && f[0].video.find(
-            z => z.tags.encodingName === 'raw' && z.tags.packing === 'v210'));
-          var fa = (Array.isArray(c[0].audio) && f[0].audio.length > 0) ? f[0].video[0] : null;
-          if (!fv) {
-            return Promise.reject('Cable must contain at least one video flow.');
-          }
-          node.srcFlow = f;
-          // Set defaults to the most commonly format for dynamorse testing
-          // TODO: support for DCI modes
-          var bmMode = macadam.bmdModeHD1080i50;
-          var bmFormat = macadam.bmdFormat10BitYUV;
-          switch (f.tags.height) {
+          .then(c => {
+            var fv = (Array.isArray(c[0].video) && c[0].video.find(
+              z => z.tags.encodingName === 'raw' && z.tags.packing === 'v210'));
+            /// var fa = (Array.isArray(c[0].audio) && c[0].audio.length > 0) ? c[0].video[0] : null;
+            if (!fv) {
+              return Promise.reject('Cable must contain at least one video flow.');
+            }
+            node.srcFlow = fv;
+            // Set defaults to the most commonly format for dynamorse testing
+            // TODO: support for DCI modes
+            var bmMode = macadam.bmdModeHD1080i50;
+            var bmFormat = macadam.bmdFormat10BitYUV;
+            switch (fv.tags.height) {
             case 2160:
               switch (x.getDuration()[1]) {
-                case 25:
-                case 25000:
-                  bmMode = macadam.bmdMode4K2160p25;
-                  break;
-                case 24:
-                case 24000:
-                  bmMode = (x.getDuration()[0] === 1001) ?
-                    macadam.bmdMode4K2160p2398 : macadam.bmdMode4K2160p24;
-                  break;
-                case 30:
-                case 30000:
-                  bmMode = (x.getDuration()[0] === 1001) ?
-                    macadam.bmdMode4K2160p2997 : macadam.bmdMode4K2160p30;
-                  break;
-                case 50:
-                case 50000:
-                  bmMode = macadam.bmdMode4K2160p50;
-                  break;
-                case 60:
-                case 60000:
-                  bmMode = (x.getDuration()[0] === 1001) ?
-                    macadam.bmdMode4K2160p5994 : macadam.bmdMode4k2160p60;
-                  break;
-                default:
-                  node.preFlightError('Could not establish Blackmagic mode.');
-                  break;
-              }
-              break;
-            case 1080:
-              switch (x.getDuration()[1]) {
-                case 25:
-                case 25000:
-                  bmMode = (f.tags.interlace === true) ?
-                    macadam.bmdModeHD1080i50 : macadam.bmdModeHD1080p25;
-                    break;
-                  case 24:
-                  case 24000:
-                    bmMode = (x.getDuration()[0] === 1001) ?
-                      macadam.bmdMode4K2160p2398 : macadam.bmdMode4K2160p24;
-                    break;
-                  case 30:
-                  case 30000:
-                    bmMode = (x.getDuration()[0] === 1001) ?
-                      macadam.bmdMode4K2160p2997 : macadam.bmdMode4K2160p30;
-                    break;
-                  case 50:
-                  case 50000:
-                    bmMode = macadam.bmdMode4K2160p50;
-                    break;
-                  case 60:
-                  case 60000:
-                    bmMode = (x.getDuration()[0] === 1001) ?
-                      macadam.bmdMode4K2160p5994 : macadam.bmdMode4k2160p60;
-                    break;
-                  default:
-                    node.preFlightError('Could not establish Blackmagic mode.');
-                    break;
-                }
+              case 25:
+              case 25000:
+                bmMode = macadam.bmdMode4K2160p25;
                 break;
-              case 1080:
-                switch (x.getDuration()[1]) {
-                  case 25:
-                  case 25000:
-                    bmMode = (f.tags.interlace === true) ?
-                      macadam.bmdModeHD1080i50 : macadam.bmdModeHD1080p25;
-                      break;
-                  case 24:
-                  case 24000:
-                    if (x.getDuration()[0] === 1001) {
-                      bmMode = (f.tags.interlace === true) ?
-                        macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2398;
-                    } else {
-                      bmMode = macadam.bmdModeHD1080p24;
-                    }
-                    break;
-                  case 30:
-                  case 30000:
-                    if (x.getDuration()[0] === 1001) {
-                      bmMode = (f.tags.interlace === true) ?
-                        macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2997;
-                    } else {
-                      bmMode = (f.tags.interlace === true) ?
-                        macadam.bmdModeHD1080i6000 : macadam.bmdModeHD1080p30;
-                    }
-                    break;
-                  case 50:
-                  case 50000:
-                    bmMode = macadam.bmdModeHD1080p50;
-                    break;
-                  case 60:
-                  case 60000:
-                    bmMode = (x.getDuration()[0] === 1001) ?
-                      macadam.bmdModeHD1080p5994 : macadam.bmdModeHD1080p6000;
-                    break;
-                  default:
-                    node.preFlightError('Could not establish Blackmagic mode.');
-                    break;
-                }
+              case 24:
+              case 24000:
+                bmMode = (x.getDuration()[0] === 1001) ?
+                  macadam.bmdMode4K2160p2398 : macadam.bmdMode4K2160p24;
                 break;
-              case 720:
-                switch (x.getDuration()[1]) {
-                  case 50:
-                  case 50000:
-                    bmMode = macadam.bmdModeHD720p50;
-                    break;
-                  case 60:
-                  case 60000:
-                    bmMode = (x.getDuration()[0] === '1') ?
-                      macadam.bmdModeHD720p5994 : macadam.bmdModeHD720p60;
-                    break;
-                  default:
-                    node.preFlightError('Could not establish Blackmagic mode.');
-                    break;
-                }
+              case 30:
+              case 30000:
+                bmMode = (x.getDuration()[0] === 1001) ?
+                  macadam.bmdMode4K2160p2997 : macadam.bmdMode4K2160p30;
                 break;
-              case 576:
-                switch (x.getDuration()[1]) {
-                  case 25:
-                  case 25000:
-                    bmMode = macadam.bmdModePAL;
-                    break;
-                  case 50:
-                  case 50000:
-                    bmMode = macadam.bmcModePALp;
-                    break;
-                  default:
-                    node.preFlightError('Could not establish Blackmagic mode.');
-                    break;
-                }
+              case 50:
+              case 50000:
+                bmMode = macadam.bmdMode4K2160p50;
                 break;
-              case 486:
-                switch (x.getDuration()[1]) {
-                  case 30:
-                  case 30000:
-                    bmMode = macadam.bmdModeNTSC;
-                    break;
-                  case 60:
-                  case 60000:
-                    bmMode = macadam.bmdModeNTSCp;
-                    break;
-                  default:
-                    node.preFlightError('Could not establish Blackmagic mode.');
-                    break;
-                }
+              case 60:
+              case 60000:
+                bmMode = (x.getDuration()[0] === 1001) ?
+                  macadam.bmdMode4K2160p5994 : macadam.bmdMode4k2160p60;
                 break;
               default:
                 node.preFlightError('Could not establish Blackmagic mode.');
                 break;
+              }
+              break;
+            case 1080:
+              switch (x.getDuration()[1]) {
+              case 25:
+              case 25000:
+                bmMode = (fv.tags.interlace === true) ?
+                  macadam.bmdModeHD1080i50 : macadam.bmdModeHD1080p25;
+                break;
+              case 24:
+              case 24000:
+                if (x.getDuration()[0] === 1001) {
+                  bmMode = (fv.tags.interlace === true) ?
+                    macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2398;
+                } else {
+                  bmMode = macadam.bmdModeHD1080p24;
+                }
+                break;
+              case 30:
+              case 30000:
+                if (x.getDuration()[0] === 1001) {
+                  bmMode = (fv.tags.interlace === true) ?
+                    macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2997;
+                } else {
+                  bmMode = (fv.tags.interlace === true) ?
+                    macadam.bmdModeHD1080i6000 : macadam.bmdModeHD1080p30;
+                }
+                break;
+              case 50:
+              case 50000:
+                bmMode = macadam.bmdModeHD1080p50;
+                break;
+              case 60:
+              case 60000:
+                bmMode = (x.getDuration()[0] === 1001) ?
+                  macadam.bmdModeHD1080p5994 : macadam.bmdModeHD1080p6000;
+                break;
+              default:
+                node.preFlightError('Could not establish Blackmagic mode.');
+                break;
+              }
+              break;
+            case 720:
+              switch (x.getDuration()[1]) {
+              case 50:
+              case 50000:
+                bmMode = macadam.bmdModeHD720p50;
+                break;
+              case 60:
+              case 60000:
+                bmMode = (x.getDuration()[0] === '1') ?
+                  macadam.bmdModeHD720p5994 : macadam.bmdModeHD720p60;
+                break;
+              default:
+                node.preFlightError('Could not establish Blackmagic mode.');
+                break;
+              }
+              break;
+            case 576:
+              switch (x.getDuration()[1]) {
+              case 25:
+              case 25000:
+                bmMode = macadam.bmdModePAL;
+                break;
+              case 50:
+              case 50000:
+                bmMode = macadam.bmcModePALp;
+                break;
+              default:
+                node.preFlightError('Could not establish Blackmagic mode.');
+                break;
+              }
+              break;
+            case 486:
+              switch (x.getDuration()[1]) {
+              case 30:
+              case 30000:
+                bmMode = macadam.bmdModeNTSC;
+                break;
+              case 60:
+              case 60000:
+                bmMode = macadam.bmdModeNTSCp;
+                break;
+              default:
+                node.preFlightError('Could not establish Blackmagic mode.');
+                break;
+              }
+              break;
+            default:
+              node.preFlightError('Could not establish Blackmagic mode.');
+              break;
             }
-            if (f.tags.packing)
-              bmFormat = macadam.fourCCFormat(f.tags.packing);
+            if (fv.tags.packing)
+              bmFormat = macadam.fourCCFormat(fv.tags.packing);
             playback = new macadam.Playback(config.deviceIndex,
               bmMode, bmFormat);
             playback.on('error', e => {
@@ -233,21 +202,21 @@ module.exports = function (RED) {
             if (p !== playState) {
               playState = p;
               switch (playState) {
-                case BMDOutputFrameCompleted:
-                  this.warn(`After ${playedCount} frames, playback state returned to frame completed OK.`);
-                  break;
-                case BMDOutputFrameDisplayedLate:
-                  this.warn(`After ${playedCount} frames, playback state is now displaying frames late.`);
-                  break;
-                case BMDOutputFrameDropped:
-                  this.warn(`After ${playedCount} frames, playback state is dropping frames.`);
-                  break;
-                case BMDOutputFrameFlushed:
-                  this.warn(`After ${playedCount} frames, playback state is flushing frames.`);
-                  break;
-                default:
-                  this.error(`After ${playedCount} frames, playback state is unknown, code ${playState}.`);
-                  break;
+              case BMDOutputFrameCompleted:
+                this.warn(`After ${playedCount} frames, playback state returned to frame completed OK.`);
+                break;
+              case BMDOutputFrameDisplayedLate:
+                this.warn(`After ${playedCount} frames, playback state is now displaying frames late.`);
+                break;
+              case BMDOutputFrameDropped:
+                this.warn(`After ${playedCount} frames, playback state is dropping frames.`);
+                break;
+              case BMDOutputFrameFlushed:
+                this.warn(`After ${playedCount} frames, playback state is flushing frames.`);
+                break;
+              default:
+                this.error(`After ${playedCount} frames, playback state is unknown, code ${playState}.`);
+                break;
               }
             }
           });
@@ -284,9 +253,9 @@ module.exports = function (RED) {
         //   sentCount++;
         // };
       })
-      .catch(err => {
-        node.error(`Failed to play video on device '${config.deviceIndex}': ${err}`);
-      });
+        .catch(err => {
+          node.error(`Failed to play video on device '${config.deviceIndex}': ${err}`);
+        });
     });
 
     node.errors((e, next) => {
@@ -311,5 +280,5 @@ module.exports = function (RED) {
     });
   }
   util.inherits(SDIOut, redioactive.Spout);
-  RED.nodes.registerType("sdi-out", SDIOut);
-}
+  RED.nodes.registerType('sdi-out', SDIOut);
+};

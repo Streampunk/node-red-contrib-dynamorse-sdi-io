@@ -46,149 +46,149 @@ module.exports = function (RED) {
       var nextJob = (node.srcFlow) ?
         Promise.resolve(x) :
         this.findCable(x)
-        .then(c => {
-          var f = f[0].video[0];
-          node.srcFlow = f;
-          if (f.tags.format !== 'video') {
-            return node.preFlightError('Only video sources supported for SDI out.');
-          }
-          // Set defaults to the most commonly format for dynamorse testing
-          // TODO: support for DCI modes
-          var bmMode = macadam.bmdModeHD1080i50;
-          var bmFormat = macadam.bmdFormat10BitYUV;
-          switch (f.tags.height) {
-            case 2160:
-              switch (x.getDuration()[1]) {
-                case 25:
-                case 25000:
-                  bmMode = macadam.bmdMode4K2160p25;
-                  break;
-                case 24:
-                case 24000:
-                  bmMode = (x.getDuration()[0] === 1001) ?
-                    macadam.bmdMode4K2160p2398 : macadam.bmdMode4K2160p24;
-                  break;
-                case 30:
-                case 30000:
-                  bmMode = (x.getDuration()[0] === 1001) ?
-                    macadam.bmdMode4K2160p2997 : macadam.bmdMode4K2160p30;
-                  break;
-                case 50:
-                case 50000:
-                  bmMode = macadam.bmdMode4K2160p50;
-                  break;
-                case 60:
-                case 60000:
-                  bmMode = (x.getDuration()[0] === 1001) ?
-                    macadam.bmdMode4K2160p5994 : macadam.bmdMode4k2160p60;
-                  break;
-                default:
-                  node.preFlightError('Could not establish Blackmagic mode.');
-                  break;
-              }
-              break;
-            case 1080:
-              switch (x.getDuration()[1]) {
-                case 25:
-                case 25000:
-                  bmMode = (f.tags.interlace === true) ?
-                    macadam.bmdModeHD1080i50 : macadam.bmdModeHD1080p25;
+          .then(c => {
+            var f = c[0].video[0];
+            node.srcFlow = f;
+            if (f.tags.format !== 'video') {
+              return node.preFlightError('Only video sources supported for SDI out.');
+            }
+            // Set defaults to the most commonly format for dynamorse testing
+            // TODO: support for DCI modes
+            var bmMode = macadam.bmdModeHD1080i50;
+            var bmFormat = macadam.bmdFormat10BitYUV;
+            switch (f.tags.height) {
+              case 2160:
+                switch (x.getDuration()[1]) {
+                  case 25:
+                  case 25000:
+                    bmMode = macadam.bmdMode4K2160p25;
                     break;
-                case 24:
-                case 24000:
-                  if (x.getDuration()[0] === 1001) {
+                  case 24:
+                  case 24000:
+                    bmMode = (x.getDuration()[0] === 1001) ?
+                      macadam.bmdMode4K2160p2398 : macadam.bmdMode4K2160p24;
+                    break;
+                  case 30:
+                  case 30000:
+                    bmMode = (x.getDuration()[0] === 1001) ?
+                      macadam.bmdMode4K2160p2997 : macadam.bmdMode4K2160p30;
+                    break;
+                  case 50:
+                  case 50000:
+                    bmMode = macadam.bmdMode4K2160p50;
+                    break;
+                  case 60:
+                  case 60000:
+                    bmMode = (x.getDuration()[0] === 1001) ?
+                      macadam.bmdMode4K2160p5994 : macadam.bmdMode4k2160p60;
+                    break;
+                  default:
+                    node.preFlightError('Could not establish Blackmagic mode.');
+                    break;
+                }
+                break;
+              case 1080:
+                switch (x.getDuration()[1]) {
+                  case 25:
+                  case 25000:
                     bmMode = (f.tags.interlace === true) ?
-                      macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2398;
-                  } else {
-                    bmMode = macadam.bmdModeHD1080p24;
-                  }
-                  break;
-                case 30:
-                case 30000:
-                  if (x.getDuration()[0] === 1001) {
-                    bmMode = (f.tags.interlace === true) ?
-                      macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2997;
-                  } else {
-                    bmMode = (f.tags.interlace === true) ?
-                      macadam.bmdModeHD1080i6000 : macadam.bmdModeHD1080p30;
-                  }
-                  break;
-                case 50:
-                case 50000:
-                  bmMode = macadam.bmdModeHD1080p50;
-                  break;
-                case 60:
-                case 60000:
-                  bmMode = (x.getDuration()[0] === 1001) ?
-                    macadam.bmdModeHD1080p5994 : macadam.bmdModeHD1080p6000;
-                  break;
-                default:
-                  node.preFlightError('Could not establish Blackmagic mode.');
-                  break;
-              }
-              break;
-            case 720:
-              switch (x.getDuration()[1]) {
-                case 50:
-                case 50000:
-                  bmMode = macadam.bmdModeHD720p50;
-                  break;
-                case 60:
-                case 60000:
-                  bmMode = (x.getDuration()[0] === '1') ?
-                    macadam.bmdModeHD720p5994 : macadam.bmdModeHD720p60;
-                  break;
-                default:
-                  node.preFlightError('Could not establish Blackmagic mode.');
-                  break;
-              }
-              break;
-            case 576:
-              switch (x.getDuration()[1]) {
-                case 25:
-                case 25000:
-                  bmMode = macadam.bmdModePAL;
-                  break;
-                case 50:
-                case 50000:
-                  bmMode = macadam.bmcModePALp;
-                  break;
-                default:
-                  node.preFlightError('Could not establish Blackmagic mode.');
-                  break;
-              }
-              break;
-            case 486:
-              switch (x.getDuration()[1]) {
-                case 30:
-                case 30000:
-                  bmMode = macadam.bmdModeNTSC;
-                  break;
-                case 60:
-                case 60000:
-                  bmMode = macadam.bmdModeNTSCp;
-                  break;
-                default:
-                  node.preFlightError('Could not establish Blackmagic mode.');
-                  break;
-              }
-              break;
-            default:
-              node.preFlightError('Could not establish Blackmagic mode.');
-              break;
-          }
-          if (f.tags.packing)
-            bmFormat = macadam.fourCCFormat(f.tags.packing);
-          playback = new macadam.Playback(config.deviceIndex,
-            bmMode, bmFormat);
-          playback.on('error', e => {
-            node.warn(`Received playback error from Blackmagic card: ${e}`);
-            next();
-          });
+                      macadam.bmdModeHD1080i50 : macadam.bmdModeHD1080p25;
+                      break;
+                  case 24:
+                  case 24000:
+                    if (x.getDuration()[0] === 1001) {
+                      bmMode = (f.tags.interlace === true) ?
+                        macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2398;
+                    } else {
+                      bmMode = macadam.bmdModeHD1080p24;
+                    }
+                    break;
+                  case 30:
+                  case 30000:
+                    if (x.getDuration()[0] === 1001) {
+                      bmMode = (f.tags.interlace === true) ?
+                        macadam.bmdModeHD1080i5994 : macadam.bmdModeHD1080p2997;
+                    } else {
+                      bmMode = (f.tags.interlace === true) ?
+                        macadam.bmdModeHD1080i6000 : macadam.bmdModeHD1080p30;
+                    }
+                    break;
+                  case 50:
+                  case 50000:
+                    bmMode = macadam.bmdModeHD1080p50;
+                    break;
+                  case 60:
+                  case 60000:
+                    bmMode = (x.getDuration()[0] === 1001) ?
+                      macadam.bmdModeHD1080p5994 : macadam.bmdModeHD1080p6000;
+                    break;
+                  default:
+                    node.preFlightError('Could not establish Blackmagic mode.');
+                    break;
+                }
+                break;
+              case 720:
+                switch (x.getDuration()[1]) {
+                  case 50:
+                  case 50000:
+                    bmMode = macadam.bmdModeHD720p50;
+                    break;
+                  case 60:
+                  case 60000:
+                    bmMode = (x.getDuration()[0] === '1') ?
+                      macadam.bmdModeHD720p5994 : macadam.bmdModeHD720p60;
+                    break;
+                  default:
+                    node.preFlightError('Could not establish Blackmagic mode.');
+                    break;
+                }
+                break;
+              case 576:
+                switch (x.getDuration()[1]) {
+                  case 25:
+                  case 25000:
+                    bmMode = macadam.bmdModePAL;
+                    break;
+                  case 50:
+                  case 50000:
+                    bmMode = macadam.bmcModePALp;
+                    break;
+                  default:
+                    node.preFlightError('Could not establish Blackmagic mode.');
+                    break;
+                }
+                break;
+              case 486:
+                switch (x.getDuration()[1]) {
+                  case 30:
+                  case 30000:
+                    bmMode = macadam.bmdModeNTSC;
+                    break;
+                  case 60:
+                  case 60000:
+                    bmMode = macadam.bmdModeNTSCp;
+                    break;
+                  default:
+                    node.preFlightError('Could not establish Blackmagic mode.');
+                    break;
+                }
+                break;
+              default:
+                node.preFlightError('Could not establish Blackmagic mode.');
+                break;
+            }
+            if (f.tags.packing)
+              bmFormat = macadam.fourCCFormat(f.tags.packing);
+            playback = new macadam.Playback(config.deviceIndex,
+              bmMode, bmFormat);
+            playback.on('error', e => {
+              node.warn(`Received playback error from Blackmagic card: ${e}`);
+              next();
+            });
 
-          begin = process.hrtime();
-          return x;
-        });
+            begin = process.hrtime();
+            return x;
+          });
       nextJob.then(g => {
         playback.frame(g.buffers[0]);
         sentCount++;
@@ -264,9 +264,10 @@ module.exports = function (RED) {
       node.log('No more to see here!');
       playback.stop();
     });
-    node.close(() => {
+    node.on('close', () => {
       node.log('Closing the video - too bright!');
       playback.stop();
+      this.close();
     });
     process.on('exit', () => {
       if (playback) playback.stop();

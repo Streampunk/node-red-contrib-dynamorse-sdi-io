@@ -13,11 +13,11 @@
   limitations under the License.
 */
 
-var redioactive = require('node-red-contrib-dynamorse-core').Redioactive;
-var util = require('util');
+const redioactive = require('node-red-contrib-dynamorse-core').Redioactive;
+const util = require('util');
 var macadam;
 try { macadam = require('macadam'); } catch(err) { console.log('SDI-In: ' + err); }
-var Grain = require('node-red-contrib-dynamorse-core').Grain;
+const Grain = require('node-red-contrib-dynamorse-core').Grain;
 
 function fixBMDCodes(code) {
   if (code === 'ARGB') return 32;
@@ -38,7 +38,6 @@ module.exports = function (RED) {
     if (config.audio == true)
       capture.enableAudio(macadam.bmdAudioSampleRate48kHz, macadam.bmdAudioSampleType16bitInteger, 2);
 
-    var node = this;
     var grainDuration = macadam.modeGrainDuration(fixBMDCodes(config.mode));
     this.vtags = {
       format : 'video',
@@ -62,7 +61,7 @@ module.exports = function (RED) {
       grainDuration: grainDuration
     };
     this.baseTime = [ Date.now() / 1000|0, (Date.now() % 1000) * 1000000 ];
-    var cable = { video: [ { tags: this.vtags } ], backPressure: "video[0]" };
+    var cable = { video: [ { tags: this.vtags } ], backPressure: 'video[0]' };
     if (config.audio === true)
       cable.audio = [ { tags: this.atags } ];
     this.makeCable(cable);
@@ -74,7 +73,7 @@ module.exports = function (RED) {
       aSourceID: (config.audio === true) ? this.sourceID('audio[0]') : undefined
     };
 
-    console.log(`You wanted audio?`, ids);
+    console.log('You wanted audio?', ids);
 
     this.eventMuncher(capture, 'frame', (video, audio) => {
       console.log('Event muching', video.length, audio);
@@ -105,5 +104,5 @@ module.exports = function (RED) {
     capture.start();
   }
   util.inherits(SDIIn, redioactive.Funnel);
-  RED.nodes.registerType("sdi-in", SDIIn);
-}
+  RED.nodes.registerType('sdi-in', SDIIn);
+};

@@ -40,6 +40,7 @@ module.exports = function (RED) {
     var producingEnough = true;
     var videoSrcFlowID = null;
     var audioSrcFlowID = null;
+    var audioTags = null;
     var cachedGrain = { grain : null, isVideo : false };
 
     function matchingTimestamps (ts1, ts2) {
@@ -82,8 +83,13 @@ module.exports = function (RED) {
 
             var fa = (Array.isArray(c[0].audio) && c[0].audio.length > 0) ? c[0].audio[0] : null;
             if (fa) {
+              if (fa.clockRate !== 48000) {
+                return Promise.reject('Blackmagic hardware only supports 48kHz audio streams.');
+              }
               node.log('We have audio: ' + JSON.stringify(c[0].audio));
               audioSrcFlowID = fa.flowID;
+              audioTags = fa.tags;
+              audioTags.bitsPerSample = +fa.tags.encodingName.substring(1);
             }
             // Set defaults to the most commonly format for dynamorse testing
             // TODO: support for DCI modes
@@ -252,7 +258,8 @@ module.exports = function (RED) {
 
         if (videoGrain) {
           if (audioGrain) {
-            playback.frame(videoGrain.buffers[0], audioGrain.buffers[0]);
+            playback.frame(videoGrain.buffers[0],
+              audioMunge(audioTags, audioGrain.buffers[0]));
           } else {
             playback.frame(videoGrain.buffers[0]);
           }
@@ -346,3 +353,37 @@ module.exports = function (RED) {
   util.inherits(SDIOut, redioactive.Spout);
   RED.nodes.registerType('sdi-out', SDIOut);
 };
+
+function audioMunge(tags, samples) {
+  var result = null;
+  switch (tags.bitsPerSample) {
+  case 16:
+    result = Buffer.allocUnsafe(samples.length);
+    for ( let x = 0 ; x < samples.length ; x += 2) {
+      result[x + 1] = samples[x];
+      result[x] = samples[x + 1];
+    }
+    break;
+  case 24:
+    result = Buffer.allocUnsafe(samples.length * 2 / 3|0);
+    var y = 0;
+    for ( let x = 0 ; x < samples.length ; x += 3) {
+      result[y++] = samples[x + 2];
+      result[y++] = samples[x + 1];
+    }
+    break;
+  default:
+    result = samples;
+  }
+  if (tags.channels == 1) {
+    var twoResult = Buffer.allocUnsafe(result.length * 2);
+    for ( let x = 0 ; x < result.length ; x += 2 ) {
+      twoResult[x * 4] = result[x];
+      twoResult[x * 4 + 1] = result[x + 1];
+      twoResult[x * 4 + 2] = result[x];
+      twoResult[x * 4 + 3] - result[x + 1];
+    }
+    result = twoResult;
+  }
+  return result;
+}

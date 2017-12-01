@@ -13,11 +13,12 @@
   limitations under the License.
 */
 
-var redioactive = require('node-red-contrib-dynamorse-core').Redioactive;
-var util = require('util');
+const redioactive = require('node-red-contrib-dynamorse-core').Redioactive;
+const util = require('util');
 var macadam;
 try { macadam = require('macadam'); } catch(err) { console.log('SDI-Out: ' + err); }
-var Grain = require('node-red-contrib-dynamorse-core').Grain;
+const Grain = require('node-red-contrib-dynamorse-core').Grain;
+const uuid = require('uuid');
 
 const BMDOutputFrameCompleted = 0;
 const BMDOutputFrameDisplayedLate = 1;
@@ -37,23 +38,53 @@ module.exports = function (RED) {
     var begin = null;
     var playState = BMDOutputFrameCompleted;
     var producingEnough = true;
+    var videoSrcFlowID = null;
+    var audioSrcFlowID = null;
+    var cachedGrain = { grain : null, isVideo : false };
+
+    function matchingTimestamps (ts1, ts2) {
+      return ts1[0] === ts2[0] && ts1[1] === ts2[1];
+    }
+
+    function tryGetCachedGrain (grain, isVideo) {
+      if(cachedGrain.grain !== null && cachedGrain.isVideo !== isVideo &&
+        matchingTimestamps(cachedGrain.grain.getOriginTimestamp(),
+          grain.getOriginTimestamp())) {
+        var toReturn = cachedGrain.grain;
+        cachedGrain.grain = null;
+        return toReturn;
+      } else {
+        if (cachedGrain.grain != null) {
+          node.warn(`!!WARNING!! Discarding expired cached grain, cached timecode: ${cachedGrain.grain.getOriginTimestamp()}, current timecode: ${grain.getOriginTimestamp()}`);
+        }
+        cachedGrain.grain = grain;
+        cachedGrain.isVideo = isVideo;
+        return null;
+      }
+    }
 
     this.each((x, next) => {
       if (!Grain.isGrain(x)) {
         node.warn('Received non-Grain payload.');
         return next();
       }
-      var nextJob = (node.srcFlow) ?
+      var nextJob = (node.srcVideoFlow) ?
         Promise.resolve(x) :
         this.findCable(x)
           .then(c => {
             var fv = (Array.isArray(c[0].video) && c[0].video.find(
               z => z.tags.encodingName === 'raw' && z.tags.packing === 'v210'));
-            /// var fa = (Array.isArray(c[0].audio) && c[0].audio.length > 0) ? c[0].video[0] : null;
             if (!fv) {
               return Promise.reject('Cable must contain at least one video flow.');
             }
-            node.srcFlow = fv;
+            node.srcVideoFlow = fv;
+            videoSrcFlowID = fv.flowID;
+
+            var fa = (Array.isArray(c[0].audio) && c[0].audio.length > 0) ? c[0].audio[0] : null;
+            if (fa) {
+              node.log('We have audio: ' + JSON.stringify(c[0].audio));
+              audioSrcFlowID = fa.flowID;
+            }
             // Set defaults to the most commonly format for dynamorse testing
             // TODO: support for DCI modes
             var bmMode = macadam.bmdModeHD1080i50;
@@ -183,6 +214,11 @@ module.exports = function (RED) {
               bmFormat = macadam.fourCCFormat(fv.tags.packing);
             playback = new macadam.Playback(config.deviceIndex,
               bmMode, bmFormat);
+            if (fa) {
+              var bitsPerSample = +fa.tags.encodingName.substring(1);
+              playback.enableAudio(fa.tags.clockRate, bitsPerSample,
+                fa.tags.channels);
+            }
             playback.on('error', e => {
               node.warn(`Received playback error from Blackmagic card: ${e}`);
               next();
@@ -192,47 +228,75 @@ module.exports = function (RED) {
             return x;
           });
       nextJob.then(g => {
-        playback.frame(g.buffers[0]);
-        sentCount++;
-        if (sentCount === +config.frameCache) {
-          this.log('Starting playback.');
-          playback.start();
-          playback.on('played', p => {
-            playedCount++;
-            if (p !== playState) {
-              playState = p;
-              switch (playState) {
-              case BMDOutputFrameCompleted:
-                this.warn(`After ${playedCount} frames, playback state returned to frame completed OK.`);
-                break;
-              case BMDOutputFrameDisplayedLate:
-                this.warn(`After ${playedCount} frames, playback state is now displaying frames late.`);
-                break;
-              case BMDOutputFrameDropped:
-                this.warn(`After ${playedCount} frames, playback state is dropping frames.`);
-                break;
-              case BMDOutputFrameFlushed:
-                this.warn(`After ${playedCount} frames, playback state is flushing frames.`);
-                break;
-              default:
-                this.error(`After ${playedCount} frames, playback state is unknown, code ${playState}.`);
-                break;
-              }
+        var flowID = uuid.unparse(g.flow_id);
+        var audioGrain = null;
+        var videoGrain = null;
+
+        if (flowID === videoSrcFlowID) {
+          if (audioSrcFlowID === null) {
+            videoGrain = g;
+          } else {
+            audioGrain = tryGetCachedGrain(g, true);
+            if (audioGrain) {
+              videoGrain = g;
             }
-          });
+          }
+        } else if (flowID === audioSrcFlowID) {
+          videoGrain = tryGetCachedGrain(g, false);
+          if (videoGrain) {
+            audioGrain = g;
+          }
+        } else {
+          return next();
         }
-        var diffTime = process.hrtime(begin);
-        var diff = (sentCount * config.timeout) -
+
+        if (videoGrain) {
+          if (audioGrain) {
+            playback.frame(videoGrain.buffers[0], audioGrain.buffers[0]);
+          } else {
+            playback.frame(videoGrain.buffers[0]);
+          }
+          sentCount++;
+          if (sentCount === +config.frameCache) {
+            node.log('Starting playback.');
+            playback.start();
+            playback.on('played', p => {
+              playedCount++;
+              if (p !== playState) {
+                playState = p;
+                switch (playState) {
+                case BMDOutputFrameCompleted:
+                  this.warn(`After ${playedCount} frames, playback state returned to frame completed OK.`);
+                  break;
+                case BMDOutputFrameDisplayedLate:
+                  this.warn(`After ${playedCount} frames, playback state is now displaying frames late.`);
+                  break;
+                case BMDOutputFrameDropped:
+                  this.warn(`After ${playedCount} frames, playback state is dropping frames.`);
+                  break;
+                case BMDOutputFrameFlushed:
+                  this.warn(`After ${playedCount} frames, playback state is flushing frames.`);
+                  break;
+                default:
+                  this.error(`After ${playedCount} frames, playback state is unknown, code ${playState}.`);
+                  break;
+                }
+              }
+            });
+          }
+          var diffTime = process.hrtime(begin);
+          var diff = (sentCount * config.timeout) -
             (diffTime[0] * 1000 + diffTime[1] / 1000000|0);
-        if ((diff < 0) && (producingEnough === true)) {
-          this.warn(`After sending ${sentCount} frames and playing ${playedCount}, not producing frames fast enough for SDI output.`);
-          producingEnough = false;
+          if ((diff < 0) && (producingEnough === true)) {
+            this.warn(`After sending ${sentCount} frames and playing ${playedCount}, not producing frames fast enough for SDI output.`);
+            producingEnough = false;
+          }
+          if ((diff > 0) && (producingEnough === false)) {
+            this.warn(`After sending ${sentCount} frames and playing ${playedCount}, started producing enough frames fast enough for SDI output.`);
+            producingEnough = true;
+          }
+          setTimeout(next, (diff > 0) ? diff : 0);
         }
-        if ((diff > 0) && (producingEnough === false)) {
-          this.warn(`After sending ${sentCount} frames and playing ${playedCount}, started producing enough frames fast enough for SDI output.`);
-          producingEnough = true;
-        }
-        setTimeout(next, (diff > 0) ? diff : 0);
         // if (sentCount < +config.frameCache) {
         //   node.log(`Caching frame ${sentCount}/${typeof config.frameCache}.`);
         //   playback.frame(g.buffers[0]);

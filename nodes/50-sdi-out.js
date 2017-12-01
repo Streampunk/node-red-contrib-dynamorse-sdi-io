@@ -302,27 +302,11 @@ module.exports = function (RED) {
             this.warn(`After sending ${sentCount} frames and playing ${playedCount}, started producing enough frames fast enough for SDI output.`);
             producingEnough = true;
           }
+          // console.log('Calling next in', diff);
           setTimeout(next, (diff > 0) ? diff : 0);
+        } else {
+          setTimeout(next, 0);
         }
-        // if (sentCount < +config.frameCache) {
-        //   node.log(`Caching frame ${sentCount}/${typeof config.frameCache}.`);
-        //   playback.frame(g.buffers[0]);
-        //   sentCount++;
-        //   if (sentCount === +config.frameCache) {
-        //     node.log('Starting playback.');
-        //     playback.start();
-        //     playback.on('played', p => {
-        //       playedCount++;
-        //       next(); next();
-        //       if (p > 0) { console.error('XXX'); next(); }
-        //     });
-        //   }
-        //   next();
-        // } else {
-        //   // console.log(`next frame ${sentCount}.`);
-        //   playback.frame(g.buffers[0]);
-        //   sentCount++;
-        // };
       })
         .catch(err => {
           node.error(`Failed to play video on device '${config.deviceIndex}': ${err}`);
@@ -355,6 +339,7 @@ module.exports = function (RED) {
 };
 
 function audioMunge(tags, samples) {
+  // console.log(samples.length, samples);
   var result = null;
   switch (tags.bitsPerSample) {
   case 16:
@@ -378,12 +363,13 @@ function audioMunge(tags, samples) {
   if (tags.channels == 1) {
     var twoResult = Buffer.allocUnsafe(result.length * 2);
     for ( let x = 0 ; x < result.length ; x += 2 ) {
-      twoResult[x * 4] = result[x];
-      twoResult[x * 4 + 1] = result[x + 1];
-      twoResult[x * 4 + 2] = result[x];
-      twoResult[x * 4 + 3] - result[x + 1];
+      twoResult[x * 2] = result[x];
+      twoResult[x * 2 + 1] = result[x + 1];
+      twoResult[x * 2 + 2] = result[x];
+      twoResult[x * 2 + 3] = result[x + 1];
     }
     result = twoResult;
   }
+  // console.log(result.length, result);
   return result;
 }

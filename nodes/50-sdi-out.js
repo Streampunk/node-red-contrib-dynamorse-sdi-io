@@ -104,7 +104,7 @@ module.exports = function (RED) {
 
             var fa = (Array.isArray(c[0].audio) && c[0].audio.length > 0) ? c[0].audio[0] : null;
             if (fa) {
-              if (fa.clockRate !== 48000) {
+              if (fa.tags.clockRate !== 48000) {
                 return Promise.reject('Blackmagic hardware only supports 48kHz audio streams.');
               }
               node.log('We have audio: ' + JSON.stringify(c[0].audio));
@@ -242,7 +242,7 @@ module.exports = function (RED) {
             playback = new macadam.Playback(config.deviceIndex,
               bmMode, bmFormat);
             if (fa) {
-              playback.enableAudio(macadam.bmdAudioSampleRate48kHz, 
+              playback.enableAudio(macadam.bmdAudioSampleRate48kHz,
                 macadam.bmdAudioSampleType16bitInteger, 2);
             }
             playback.on('error', e => {

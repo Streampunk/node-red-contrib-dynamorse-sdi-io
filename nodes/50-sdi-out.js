@@ -325,7 +325,7 @@ module.exports = function (RED) {
           // console.log('Calling next in', diff);
           setTimeout(next, (diff > 0) ? diff : 0);
         } else {
-          setTimeout(next, 0);
+          setImmediate(next);
         }
       })
         .catch(err => {
@@ -377,8 +377,8 @@ function audioMunge(tags, samples) {
     result = Buffer.allocUnsafe(samples.length * 2 / 3|0);
     var y = 0;
     for ( let x = 0 ; x < samples.length ; x += 3) {
-      result[y++] = samples[x + 2];
       result[y++] = samples[x + 1];
+      result[y++] = samples[x + 0];
     }
     break;
   default:

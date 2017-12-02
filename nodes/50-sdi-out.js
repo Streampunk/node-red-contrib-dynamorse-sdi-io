@@ -25,6 +25,22 @@ const BMDOutputFrameDisplayedLate = 1;
 const BMDOutputFrameDropped = 2;
 const BMDOutputFrameFlushed = 3;
 
+function extractVersions (v) {
+  var m = v.match(/^([0-9]+):([0-9]+)$/);
+  if (m === null) { return [Number.MAX_SAFE_INTEGER, 0]; }
+  return [+m[1], +m[2]];
+}
+
+function compareVersions (l, r) {
+  var lm = extractVersions(l);
+  var rm = extractVersions(r);
+  if (lm[0] < rm[0]) return -1;
+  if (lm[0] > rm[0]) return 1;
+  if (lm[1] < rm[1]) return -1;
+  if (lm[1] > rm[1]) return 1;
+  return 0;
+}
+
 module.exports = function (RED) {
   function SDIOut (config) {
     RED.nodes.createNode(this, config);
@@ -41,28 +57,33 @@ module.exports = function (RED) {
     var videoSrcFlowID = null;
     var audioSrcFlowID = null;
     var audioTags = null;
-    var cachedGrain = { grain : null, isVideo : false };
+    var grainCache = {};
 
-    function matchingTimestamps (ts1, ts2) {
-      return ts1[0] === ts2[0] && ts1[1] === ts2[1];
-    }
-
-    function tryGetCachedGrain (grain, isVideo) {
-      if(cachedGrain.grain !== null && cachedGrain.isVideo !== isVideo &&
-        matchingTimestamps(cachedGrain.grain.getOriginTimestamp(),
-          grain.getOriginTimestamp())) {
-        var toReturn = cachedGrain.grain;
-        cachedGrain.grain = null;
-        return toReturn;
-      } else {
-        if (cachedGrain.grain != null) {
-          node.warn(`!!WARNING!! Discarding expired cached grain, cached timecode: ${cachedGrain.grain.getOriginTimestamp()}, current timecode: ${grain.getOriginTimestamp()}`);
+    function tryGetCachedGrain (grain, type) { // TODO change to fuzzy match
+      let timestamp = grain.formatTimestamp(grain.ptpOrigin);
+      let cachedGrain = grainCache[timestamp];
+      if (cachedGrain) {
+        if (cachedGrain.type !== type) { // TODO consider other grain types
+          delete grainCache[timestamp];
+          return cachedGrain.grain;
+        } else {
+          node.warn(`For timestamp ${timestamp}, received two grains of the same type ${type}.`);
         }
-        cachedGrain.grain = grain;
-        cachedGrain.isVideo = isVideo;
+      } else {
+        grainCache[timestamp] = { grain: grain, type: type };
         return null;
       }
     }
+
+    var clearDown = setInterval(() => {
+      let grainKeys = Object.keys(grainCache);
+      node.log(`Clearing down grain cache of size ${grainKeys.length}.`);
+      let ditch = grainKeys.sort(compareVersions).slice(0, -10);
+      ditch.forEach(x => {
+        node.warn(`For timestamp ${x}, grain of type ${grainCache[x].type} was not matched. Discarding.`);
+        delete grainCache[x];
+      });
+    }, 5000);
 
     this.each((x, next) => {
       if (!Grain.isGrain(x)) {
@@ -242,13 +263,13 @@ module.exports = function (RED) {
           if (audioSrcFlowID === null) {
             videoGrain = g;
           } else {
-            audioGrain = tryGetCachedGrain(g, true);
+            audioGrain = tryGetCachedGrain(g, 'video');
             if (audioGrain) {
               videoGrain = g;
             }
           }
         } else if (flowID === audioSrcFlowID) {
-          videoGrain = tryGetCachedGrain(g, false);
+          videoGrain = tryGetCachedGrain(g, 'audio');
           if (videoGrain) {
             audioGrain = g;
           }
@@ -320,17 +341,21 @@ module.exports = function (RED) {
     node.done(() => {
       node.log('No more to see here!');
       playback.stop();
+      clearInterval(clearDown);
     });
     node.on('close', () => {
       node.log('Closing the video - too bright!');
       playback.stop();
+      clearInterval(clearDown);
       this.close();
     });
     process.on('exit', () => {
       if (playback) playback.stop();
+      clearInterval(clearDown);
     });
     process.on('SIGINT', () => {
       if (playback) playback.stop();
+      clearInterval(clearDown);
       process.exit();
     });
   }

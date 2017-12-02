@@ -242,9 +242,8 @@ module.exports = function (RED) {
             playback = new macadam.Playback(config.deviceIndex,
               bmMode, bmFormat);
             if (fa) {
-              var bitsPerSample = +fa.tags.encodingName.substring(1);
-              playback.enableAudio(fa.tags.clockRate, bitsPerSample,
-                fa.tags.channels);
+              playback.enableAudio(macadam.bmdAudioSampleRate48kHz, 
+                macadam.bmdAudioSampleType16bitInteger, 2);
             }
             playback.on('error', e => {
               node.warn(`Received playback error from Blackmagic card: ${e}`);

@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-dynamorse-sdi-io",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Dynamorse Blackmagic SDI IO nodes for Node-RED",
   "author": "Streampunk Media Ltd",
   "license": "Apache-2.0",

@@ -51,9 +51,9 @@ module.exports = function (RED) {
     var playedCount = 0;
     var playback = null;
     var node = this;
-    var begin = null;
+    // var begin = null;
     var playState = BMDOutputFrameCompleted;
-    var producingEnough = true;
+    // var producingEnough = true;
     var videoSrcFlowID = null;
     var audioSrcFlowID = null;
     var audioTags = null;
@@ -250,7 +250,7 @@ module.exports = function (RED) {
               next();
             });
 
-            begin = process.hrtime();
+            // begin = process.hrtime();
             return x;
           });
       nextJob.then(g => {
@@ -284,34 +284,45 @@ module.exports = function (RED) {
             playback.frame(videoGrain.buffers[0]);
           }
           sentCount++;
+          if (sentCount < +config.frameCache) {
+            return next();
+          }
           if (sentCount === +config.frameCache) {
             node.log('Starting playback.');
             playback.start();
             playback.on('played', p => {
               playedCount++;
-              if (p !== playState) {
-                playState = p;
-                switch (playState) {
-                case BMDOutputFrameCompleted:
+              next();
+              let showMsg = (p !== playState);
+              playState = p;
+              switch (playState) {
+              case BMDOutputFrameCompleted:
+                if (showMsg) {
                   this.warn(`After ${playedCount} frames, playback state returned to frame completed OK.`);
-                  break;
-                case BMDOutputFrameDisplayedLate:
-                  this.warn(`After ${playedCount} frames, playback state is now displaying frames late.`);
-                  break;
-                case BMDOutputFrameDropped:
-                  this.warn(`After ${playedCount} frames, playback state is dropping frames.`);
-                  break;
-                case BMDOutputFrameFlushed:
-                  this.warn(`After ${playedCount} frames, playback state is flushing frames.`);
-                  break;
-                default:
-                  this.error(`After ${playedCount} frames, playback state is unknown, code ${playState}.`);
-                  break;
                 }
+                break;
+              case BMDOutputFrameDisplayedLate:
+                if (showMsg) {
+                  this.warn(`After ${playedCount} frames, playback state is now displaying frames late.`);
+                }
+                next();
+                break;
+              case BMDOutputFrameDropped:
+                if (showMsg) {
+                  this.warn(`After ${playedCount} frames, playback state is dropping frames.`);
+                }
+                next(); next(); // Hurry UP!
+                break;
+              case BMDOutputFrameFlushed:
+                this.warn(`After ${playedCount} frames, playback state is flushing frames.`);
+                break;
+              default:
+                this.error(`After ${playedCount} frames, playback state is unknown, code ${playState}.`);
+                break;
               }
             });
           }
-          var diffTime = process.hrtime(begin);
+          /* var diffTime = process.hrtime(begin);
           var diff = (sentCount * config.timeout) -
             (diffTime[0] * 1000 + diffTime[1] / 1000000|0);
           if ((diff < 0) && (producingEnough === true)) {
@@ -323,7 +334,7 @@ module.exports = function (RED) {
             producingEnough = true;
           }
           // console.log('Calling next in', diff);
-          setTimeout(next, (diff > 0) ? diff : 0);
+          setTimeout(next, (diff > 0) ? diff : 0); */
         } else {
           setImmediate(next);
         }

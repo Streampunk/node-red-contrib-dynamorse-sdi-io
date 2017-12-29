@@ -76,7 +76,7 @@ module.exports = function (RED) {
     console.log('You wanted audio?', ids);
 
     this.eventMuncher(capture, 'frame', (video, audio) => {
-      console.log('Event muching', video.length, audio);
+      // console.log('Event muching', video.length, audio);
       var grainTime = Buffer.allocUnsafe(10);
       grainTime.writeUIntBE(this.baseTime[0], 0, 6);
       grainTime.writeUInt32BE(this.baseTime[1], 6);

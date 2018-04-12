@@ -11,10 +11,10 @@
     "macadam": "^0.3.1"
   },
   "devDependencies": {
-    "dynamorse-test": "^0.1.1",
-    "eslint": "^4.9.0",
+    "dynamorse-test": "^0.2.0",
+    "eslint": "^4.19.1",
     "eslint-config-google": "^0.9.1",
-    "tape": "^4.6.3"
+    "tape": "^4.9.0"
   },
   "scripts": {
     "test": "tape test/*Spec.js",

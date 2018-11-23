@@ -97,7 +97,6 @@ module.exports = function (RED) {
     });
 
     this.on('close', () => {
-      this.close();
       capture.stop();
     });
 

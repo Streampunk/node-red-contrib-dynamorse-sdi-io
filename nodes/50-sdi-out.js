@@ -357,7 +357,6 @@ module.exports = function (RED) {
       node.log('Closing the video - too bright!');
       playback.stop();
       clearInterval(clearDown);
-      this.close();
     });
     process.on('exit', () => {
       if (playback) playback.stop();
